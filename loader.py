@@ -8,8 +8,6 @@ import re
 #        for each job i (i=1,...,n) in turn:
 #           p(i), a(i), b(i)
 def load_data(path):
-    n = 0
-
     results = []
     with open(path) as file:
         problems = int(file.readline())
