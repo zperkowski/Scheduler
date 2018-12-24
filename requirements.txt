@@ -1,2 +1,5 @@
 matplotlib
 numpy
+tensorflow
+keras
+tqdm

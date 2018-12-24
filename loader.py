@@ -1,4 +1,5 @@
 import re
+import numpy as np
 
 
 # The format of these data files is:
@@ -32,3 +33,22 @@ def load_data(path):
             }
             results.append(result)
     return results
+
+
+def convert_to_numpy_array(data):
+    arrays = []
+    for datum in data:
+        values = [datum['p'], datum['a'], datum['b']]
+        array = np.array(values, dtype=int)
+        arrays.append(array)
+    return arrays
+
+
+def save_data(path, result, scheduled_task):
+    len = result['n']
+    with open(path, 'w') as file:
+        file.write(result["sum_f"])
+        file.write(str(len))
+        for i in range(len):
+            t_id = scheduled_task[i]["id"]
+            file.write(result['p'][t_id] + "\t" + result['a'][t_id] + "\t" + result['b'][t_id])

@@ -1,21 +1,25 @@
 
-def solve(d, result):
+def solve(d, result, order=None):
+    if not order:
+        order = range(len(result[0]))
     scheduled_tasks = []
     current_time = 0
     sum_f = 0
-    for i in range(result['n']):
-        if current_time < d and current_time + result['p'][i] <= d:
-            f = result['p'][i] * result['a'][i]
-        elif current_time >= d and current_time + result['p'][i] > d:
-            f = result['p'][i] * result['b'][i]
+    for i in order:
+        if current_time < d and current_time + result[0][i] <= d:
+            f = result[0][i] * result[1][i]
+        elif current_time >= d and current_time + result[0][i] > d:
+            f = result[0][i] * result[2][i]
         else:
-            f = ((d - current_time) * result['a'][i]) + (result['p'][i] - (d - current_time)) * result['b'][i]
+            f = ((d - current_time) * result[1][i]) + (result[0][i] - (d - current_time)) * result[2][i]
 
-        task = {
-            "start_time": current_time,
-            "f": f
-        }
-        scheduled_tasks.append(task)
-        current_time += result['p'][i]
-        sum_f += task['f']
-    return scheduled_tasks, sum_f
+        # task = {
+        #     "id": i,
+        #     "start_time": current_time,
+        #     "f": f
+        # }
+        # scheduled_tasks.append(task)
+
+        current_time += result[0][i]
+        sum_f += f
+    return sum_f
