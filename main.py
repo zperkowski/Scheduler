@@ -1,31 +1,27 @@
 import math
-import itertools
-import numpy as np
-
-from keras import utils
-from keras.losses import categorical_crossentropy
-from keras.optimizers import SGD, Adadelta
-from keras.utils import to_categorical
-from keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten
-
-from loader import load_data, save_data, convert_to_numpy_array
-from simple_solver import solve
-from keras.models import Sequential
-from keras.layers import Dense
-from tqdm import tqdm
 import random
 
+import matplotlib.pyplot as plt
+import numpy as np
+from keras import utils
+from keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten
+from keras.layers import Dense
+from keras.losses import categorical_crossentropy
+from keras.models import Sequential
+from keras.optimizers import Adadelta
+from tqdm import tqdm
 
-def solve_data(data, h=None, bf_samples=100000):
+from loader import load_data, convert_to_numpy_array
+from simple_solver import solve
+
+
+def solve_data(data, h=None, bf_samples=1000000):
     if not h:
         all_h = range(20, 90, 20)
         all_h = [h / 100 for h in all_h]
     else:
         all_h = [h]
     scheduled_tasks = []
-    # possible_orders = list(itertools.permutations([i for i in range(len(data[0]))]))
-    # nth = int(len(possible_orders) * 0.10)
-    # possible_orders = possible_orders[::nth]
     possible_orders = []
     for i in range(bf_samples):
         possible_orders.append(random.sample(range(0, len(data[0])), len(data[0])))
@@ -34,7 +30,7 @@ def solve_data(data, h=None, bf_samples=100000):
         best_order = []
         min_sum_f = 3200000
         for h in all_h:
-            for i in tqdm(range(len(possible_orders)), desc="Order permutations", mininterval=0.5):
+            for i in range(len(possible_orders)):
                 sum_p = sum([p[0] for p in datum])
                 d = math.floor(sum_p * h)
                 sum_f = solve(d, datum, possible_orders[i])
@@ -65,7 +61,7 @@ def prepare_model(train_data, train_order, test_data):
 def prepare_conv2d(x_train, y_train, x_test, y_test):
     num_tasks = x_train.shape[1]
     batch_size = 128
-    epochs = 1000
+    epochs = 1000000
     input_shape = (num_tasks, 3, 1)
     num_classes = num_tasks
     model = Sequential()
@@ -87,17 +83,36 @@ def prepare_conv2d(x_train, y_train, x_test, y_test):
     flatten_categorized_y_train = get_flat_categorized_y(y_train, num_classes)
     flatten_categorized_y_test = get_flat_categorized_y(y_test, num_classes)
 
-    model.fit(x_train, flatten_categorized_y_train,
-              batch_size=batch_size,
-              epochs=epochs,
-              verbose=1,
-              validation_data=(x_test, flatten_categorized_y_test))
+    history = model.fit(x_train, flatten_categorized_y_train,
+                        batch_size=batch_size,
+                        epochs=epochs,
+                        verbose=1,
+                        validation_data=(x_test, flatten_categorized_y_test))
+    visualize_training(history)
     score = model.evaluate(x_test, flatten_categorized_y_train, verbose=0)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
     classification = model.predict(x_test, batch_size=batch_size)
     classification = [c.reshape(num_tasks, num_classes) for c in classification]
     return classification
+
+
+def visualize_training(history):
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('Model accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show()
+
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('Model loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show()
 
 
 def get_flat_categorized_y(y_data, num_classes):
@@ -109,11 +124,10 @@ def get_flat_categorized_y(y_data, num_classes):
 
 
 if __name__ == '__main__':
-    data = load_data('data/sch20.txt')
+    data = load_data('data/sch1000.txt')
     data = convert_to_numpy_array(data)
     order = solve_data(data, 0.8)
     print(order)
     # classification = prepare_model(data[0:5], order[0:5], data[5:9])
     # print(classification)
     classification = prepare_conv2d(data[0:5], order[0:5], data[5:10], order[5:10])
-    print(classification)
