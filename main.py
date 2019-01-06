@@ -3,7 +3,8 @@ import itertools
 import numpy as np
 
 from keras import utils
-from keras.optimizers import SGD
+from keras.losses import categorical_crossentropy
+from keras.optimizers import SGD, Adadelta
 from keras.utils import to_categorical
 from keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten
 
@@ -26,7 +27,7 @@ def solve_data(data, h=None):
         min_sum_f = 3200000
         for h in all_h:
             possible_orders = list(itertools.permutations([i for i in range(len(datum))]))
-            possible_orders = possible_orders[:10000]
+            possible_orders = possible_orders
             for i in tqdm(range(len(possible_orders)), desc="Order permutations", mininterval=0.5):
                 sum_p = sum([p[0] for p in datum])
                 d = math.floor(sum_p * h)
@@ -55,10 +56,58 @@ def prepare_model(train_data, train_order, test_data):
     return classification
 
 
+def prepare_conv2d(x_train, y_train, x_test, y_test):
+    num_tasks = 10
+    batch_size = 128
+    epochs = 12
+    input_shape = (num_tasks, 3, 1)
+    num_classes = num_tasks
+    model = Sequential()
+    model.add(Conv2D(32, kernel_size=(3, 3),
+                     activation='relu',
+                     input_shape=input_shape))
+    model.add(Conv2D(64, (1, 1), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(1, 1)))
+    model.add(Dropout(0.25))
+    model.add(Flatten())
+    model.add(Dense(128, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(num_tasks * num_classes, activation='softmax'))
+
+    model.compile(loss=categorical_crossentropy,
+                  optimizer=Adadelta(),
+                  metrics=['accuracy'])
+
+    flatten_categorized_y_train = get_flat_categorized_y(y_train, num_classes)
+    flatten_categorized_y_test = get_flat_categorized_y(y_test, num_classes)
+
+    model.fit(x_train, flatten_categorized_y_train,
+              batch_size=batch_size,
+              epochs=epochs,
+              verbose=1,
+              validation_data=(x_test, flatten_categorized_y_test))
+    score = model.evaluate(x_test, flatten_categorized_y_train, verbose=0)
+    print('Test loss:', score[0])
+    print('Test accuracy:', score[1])
+    classification = model.predict(x_test, batch_size=batch_size)
+    classification = [c.reshape(num_tasks, num_classes) for c in classification]
+    return classification
+
+
+def get_flat_categorized_y(y_data, num_classes):
+    train_order = [order[0] for order in y_data]
+    train_order = np.asarray(train_order)
+    categorized_y_train = utils.to_categorical(train_order, num_classes=num_classes)
+    flatten_categorized_y_train = np.asarray([y.flatten() for y in categorized_y_train])
+    return flatten_categorized_y_train
+
+
 if __name__ == '__main__':
     data = load_data('data/sch10.txt')
     data = convert_to_numpy_array(data)
     order = solve_data(data, 0.8)
     print(order)
-    classification = prepare_model(data[0:5], order[0:5], data[5:9])
+    # classification = prepare_model(data[0:5], order[0:5], data[5:9])
+    # print(classification)
+    classification = prepare_conv2d(data[0:5], order[0:5], data[5:10], order[5:10])
     print(classification)

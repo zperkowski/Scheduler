@@ -40,7 +40,7 @@ def convert_to_numpy_array(data):
     for datum in data:
         values = []
         for i in range(len(datum['p'])):
-            values.append([datum['p'][i], datum['a'][i], datum['b'][i]])
+            values.append([[datum['p'][i]], [datum['a'][i]], [datum['b'][i]]])
         array = np.array(values, dtype=int)
         arrays.append(array)
     return np.asarray(arrays)
