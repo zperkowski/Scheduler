@@ -13,21 +13,27 @@ from simple_solver import solve
 from keras.models import Sequential
 from keras.layers import Dense
 from tqdm import tqdm
+import random
 
 
-def solve_data(data, h=None):
+def solve_data(data, h=None, bf_samples=100000):
     if not h:
         all_h = range(20, 90, 20)
         all_h = [h / 100 for h in all_h]
     else:
         all_h = [h]
     scheduled_tasks = []
+    # possible_orders = list(itertools.permutations([i for i in range(len(data[0]))]))
+    # nth = int(len(possible_orders) * 0.10)
+    # possible_orders = possible_orders[::nth]
+    possible_orders = []
+    for i in range(bf_samples):
+        possible_orders.append(random.sample(range(0, len(data[0])), len(data[0])))
+
     for datum in tqdm(data, desc="Instances"):
         best_order = []
         min_sum_f = 3200000
         for h in all_h:
-            possible_orders = list(itertools.permutations([i for i in range(len(datum))]))
-            possible_orders = possible_orders
             for i in tqdm(range(len(possible_orders)), desc="Order permutations", mininterval=0.5):
                 sum_p = sum([p[0] for p in datum])
                 d = math.floor(sum_p * h)
@@ -57,9 +63,9 @@ def prepare_model(train_data, train_order, test_data):
 
 
 def prepare_conv2d(x_train, y_train, x_test, y_test):
-    num_tasks = 10
+    num_tasks = x_train.shape[1]
     batch_size = 128
-    epochs = 12
+    epochs = 1000
     input_shape = (num_tasks, 3, 1)
     num_classes = num_tasks
     model = Sequential()
@@ -103,7 +109,7 @@ def get_flat_categorized_y(y_data, num_classes):
 
 
 if __name__ == '__main__':
-    data = load_data('data/sch10.txt')
+    data = load_data('data/sch20.txt')
     data = convert_to_numpy_array(data)
     order = solve_data(data, 0.8)
     print(order)
