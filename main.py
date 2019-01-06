@@ -15,7 +15,7 @@ from loader import load_data, convert_to_numpy_array
 from simple_solver import solve
 
 
-def solve_data(data, h=None, bf_samples=1000000):
+def solve_data(data, h=None, bf_samples=100000):
     if not h:
         all_h = range(20, 90, 20)
         all_h = [h / 100 for h in all_h]
@@ -60,8 +60,8 @@ def prepare_model(train_data, train_order, test_data):
 
 def prepare_conv2d(x_train, y_train, x_test, y_test):
     num_tasks = x_train.shape[1]
-    batch_size = 128
-    epochs = 1000000
+    batch_size = 1
+    epochs = 10000
     input_shape = (num_tasks, 3, 1)
     num_classes = num_tasks
     model = Sequential()
@@ -123,11 +123,28 @@ def get_flat_categorized_y(y_data, num_classes):
     return flatten_categorized_y_train
 
 
+def translate_classification(classification):
+    orders = []
+    for c in classification:
+        order = []
+        for task in c:
+            value_index = np.argmax(task)
+            order.append(value_index)
+        orders.append(order)
+    return orders
+
+
 if __name__ == '__main__':
-    data = load_data('data/sch1000.txt')
+    data = load_data('data/sch10.txt')
     data = convert_to_numpy_array(data)
     order = solve_data(data, 0.8)
     print(order)
     # classification = prepare_model(data[0:5], order[0:5], data[5:9])
     # print(classification)
     classification = prepare_conv2d(data[0:5], order[0:5], data[5:10], order[5:10])
+    orders = translate_classification(classification)
+    order_train = [t[1] for t in order][5:]
+    order_score = []
+    for i in range(5):
+        di = i + 5
+        order_score.append(solve(0.8, data[di], orders[i]))
