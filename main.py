@@ -1,7 +1,11 @@
 import math
 import itertools
+import numpy as np
 
+from keras import utils
+from keras.optimizers import SGD
 from keras.utils import to_categorical
+from keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten
 
 from loader import load_data, save_data, convert_to_numpy_array
 from simple_solver import solve
@@ -21,10 +25,10 @@ def solve_data(data, h=None):
         best_order = []
         min_sum_f = 3200000
         for h in all_h:
-            possible_orders = list(itertools.permutations([i for i in range(len(datum[0]))]))
+            possible_orders = list(itertools.permutations([i for i in range(len(datum))]))
             possible_orders = possible_orders[:10000]
             for i in tqdm(range(len(possible_orders)), desc="Order permutations", mininterval=0.5):
-                sum_p = sum(datum[0])
+                sum_p = sum([p[0] for p in datum])
                 d = math.floor(sum_p * h)
                 sum_f = solve(d, datum, possible_orders[i])
                 if sum_f < min_sum_f:
@@ -37,13 +41,17 @@ def solve_data(data, h=None):
 
 def prepare_model(train_data, train_order, test_data):
     model = Sequential()
-    model.add(Dense(units=64, activation='relu', input_shape=train_data[0].shape))
+    model.add(Dense(units=32, activation='relu', input_dim=len(train_data[0])))
     model.add(Dense(units=10, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
-    model.fit(train_data, train_order, epochs=5, batch_size=32)
-    classification = model.predict(test_data, batch_size=128)
+    train_order = [order[0] for order in train_order]
+    train_order = np.asarray(train_order)
+    categorized_oder = utils.to_categorical(train_order, num_classes=max(train_order[0]) + 1)
+    model.fit(train_data, categorized_oder, epochs=5, batch_size=32)
+    print("Training finished")
+    classification = model.predict(test_data, batch_size=64)
     return classification
 
 

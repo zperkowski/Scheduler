@@ -6,12 +6,12 @@ def solve(d, result, order=None):
     current_time = 0
     sum_f = 0
     for i in order:
-        if current_time < d and current_time + result[0][i] <= d:
-            f = result[0][i] * result[1][i]
-        elif current_time >= d and current_time + result[0][i] > d:
-            f = result[0][i] * result[2][i]
+        if current_time < d and current_time + result[i][0] <= d:
+            f = result[i][0] * result[i][1]
+        elif current_time >= d and current_time + result[i][0] > d:
+            f = result[i][0] * result[i][2]
         else:
-            f = ((d - current_time) * result[1][i]) + (result[0][i] - (d - current_time)) * result[2][i]
+            f = ((d - current_time) * result[i][1]) + (result[i][0] - (d - current_time)) * result[i][2]
 
         # task = {
         #     "id": i,
@@ -20,6 +20,6 @@ def solve(d, result, order=None):
         # }
         # scheduled_tasks.append(task)
 
-        current_time += result[0][i]
+        current_time += result[i][0]
         sum_f += f
     return sum_f

@@ -38,10 +38,12 @@ def load_data(path):
 def convert_to_numpy_array(data):
     arrays = []
     for datum in data:
-        values = [datum['p'], datum['a'], datum['b']]
+        values = []
+        for i in range(len(datum['p'])):
+            values.append([datum['p'][i], datum['a'][i], datum['b'][i]])
         array = np.array(values, dtype=int)
         arrays.append(array)
-    return arrays
+    return np.asarray(arrays)
 
 
 def save_data(path, result, scheduled_task):
