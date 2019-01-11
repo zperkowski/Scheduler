@@ -11,11 +11,12 @@ from keras.models import Sequential
 from keras.optimizers import Adadelta
 from tqdm import tqdm
 
+from generator import generate_set_of_tasks
 from loader import load_data, convert_to_numpy_array
 from simple_solver import solve
 
 
-def solve_data(data, h=None, bf_samples=100000):
+def solve_data(data, h=None, bf_samples=200000):
     if not h:
         all_h = range(20, 90, 20)
         all_h = [h / 100 for h in all_h]
@@ -60,8 +61,8 @@ def prepare_model(train_data, train_order, test_data):
 
 def prepare_conv2d(x_train, y_train, x_test, y_test):
     num_tasks = x_train.shape[1]
-    batch_size = 1
-    epochs = 10000
+    batch_size = 10
+    epochs = 10
     input_shape = (num_tasks, 3, 1)
     num_classes = num_tasks
     model = Sequential()
@@ -89,12 +90,12 @@ def prepare_conv2d(x_train, y_train, x_test, y_test):
                         verbose=1,
                         validation_data=(x_test, flatten_categorized_y_test))
     visualize_training(history)
-    score = model.evaluate(x_test, flatten_categorized_y_train, verbose=0)
-    print('Test loss:', score[0])
-    print('Test accuracy:', score[1])
+    # score = model.evaluate(x_test, flatten_categorized_y_train, verbose=0)
+    # print('Test loss:', score[0])
+    # print('Test accuracy:', score[1])
     classification = model.predict(x_test, batch_size=batch_size)
     classification = [c.reshape(num_tasks, num_classes) for c in classification]
-    return classification
+    return classification, model
 
 
 def visualize_training(history):
@@ -135,16 +136,33 @@ def translate_classification(classification):
 
 
 if __name__ == '__main__':
-    data = load_data('data/sch10.txt')
-    data = convert_to_numpy_array(data)
-    order = solve_data(data, 0.8)
-    print(order)
-    # classification = prepare_model(data[0:5], order[0:5], data[5:9])
-    # print(classification)
-    classification = prepare_conv2d(data[0:5], order[0:5], data[5:10], order[5:10])
+    D = 0.8
+    generated_data = generate_set_of_tasks(50000, 10, 1, 20, 1, 10, 1, 15)
+    generated_data = convert_to_numpy_array(generated_data)
+    order = solve_data(generated_data, D, bf_samples=1000)
+    classification, model = prepare_conv2d(generated_data[0:50000],
+                                           order[0:50000],
+                                           generated_data[45000:100000],
+                                           order[45000:100000])
     orders = translate_classification(classification)
     order_train = [t[1] for t in order][5:]
+
+    data = load_data('data/sch10.txt')
+    data = convert_to_numpy_array(data)
+    order = solve_data(data, D)
+
+    for i in range(len(order)):
+        print(str(i) + '\t' + str(order[i][1]))
+    print()
+    # classification = prepare_model(data[0:5], order[0:5], data[5:9])
+    # print(classification)
+    # classification = prepare_conv2d(data[0:5], order[0:5], data[5:10], order[5:10])
+    classification = model.predict(data, batch_size=10)
+    classification = [c.reshape(10, 10) for c in classification]
+    orders = translate_classification(classification)
+    order_train = [t[1] for t in order][0:10]
     order_score = []
-    for i in range(5):
-        di = i + 5
-        order_score.append(solve(0.8, data[di], orders[i]))
+    for i in range(10):
+        order_score.append(solve(0.8, data[i], orders[i]))
+    for i in range(len(order_score)):
+        print(str(i) + '\t' + str(order_score[i]))
