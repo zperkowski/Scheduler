@@ -1,3 +1,4 @@
+funcy
 matplotlib
 numpy
 tensorflow

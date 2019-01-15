@@ -1,5 +1,7 @@
 import math
 import random
+import funcy
+from multiprocessing import Pool
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,7 +18,11 @@ from loader import load_data, convert_to_numpy_array
 from simple_solver import solve
 
 
-def solve_data(data, h=None, bf_samples=200000):
+def solve_data_helper(args):
+    return solve_data(*args)
+
+
+def solve_data(data, h, bf_samples):
     if not h:
         all_h = range(20, 90, 20)
         all_h = [h / 100 for h in all_h]
@@ -41,22 +47,6 @@ def solve_data(data, h=None, bf_samples=200000):
                 # save_data('data/sch10_output.txt', datum, scheduled_tasks)
         scheduled_tasks.append((best_order, min_sum_f))
     return scheduled_tasks
-
-
-def prepare_model(train_data, train_order, test_data):
-    model = Sequential()
-    model.add(Dense(units=32, activation='relu', input_dim=len(train_data[0])))
-    model.add(Dense(units=10, activation='softmax'))
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='sgd',
-                  metrics=['accuracy'])
-    train_order = [order[0] for order in train_order]
-    train_order = np.asarray(train_order)
-    categorized_oder = utils.to_categorical(train_order, num_classes=max(train_order[0]) + 1)
-    model.fit(train_data, categorized_oder, epochs=5, batch_size=32)
-    print("Training finished")
-    classification = model.predict(test_data, batch_size=64)
-    return classification
 
 
 def prepare_conv2d(x_train, y_train, x_test, y_test):
@@ -135,35 +125,60 @@ def translate_classification(classification):
     return orders
 
 
-if __name__ == '__main__':
-    D = 0.8
-    artificial_tasks = 500
-    generated_data = generate_set_of_tasks(artificial_tasks, 10, 1, 20, 1, 10, 1, 15)
+def chunk_seq(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+
+    return out
+
+
+def run(h, n, generate_tasks, generated_tasks_bf, input_tasks_bf, batch_size, concurrency=1):
+    generated_data = generate_set_of_tasks(generate_tasks, n, 1, 20, 1, 10, 1, 15)
     generated_data = convert_to_numpy_array(generated_data)
-    order = solve_data(generated_data, D, bf_samples=1000)
+
+    order = solve_data_concurrent(concurrency, generated_data, generated_tasks_bf, h)
+
     classification, model = prepare_conv2d(generated_data,
                                            order,
                                            generated_data,
                                            order)
-    orders = translate_classification(classification)
-    order_train = [t[1] for t in order][5:]
-
-    data = load_data('data/sch10.txt')
+    data = load_data('data/sch' + str(n) + '.txt')
     data = convert_to_numpy_array(data)
-    order = solve_data(data, D, bf_samples=200000)
+    order = solve_data_concurrent(concurrency, data, input_tasks_bf, h)
 
     for i in range(len(order)):
         print(str(i) + '\t' + str(order[i][1]))
-    print()
-    # classification = prepare_model(data[0:5], order[0:5], data[5:9])
-    # print(classification)
-    # classification = prepare_conv2d(data[0:5], order[0:5], data[5:10], order[5:10])
-    classification = model.predict(data, batch_size=10)
+    classification = model.predict(data, batch_size=batch_size)
     classification = [c.reshape(10, 10) for c in classification]
     orders = translate_classification(classification)
-    order_train = [t[1] for t in order][0:10]
     order_score = []
     for i in range(10):
-        order_score.append(solve(D, data[i], orders[i]))
+        order_score.append(solve(h, data[i], orders[i]))
     for i in range(len(order_score)):
         print(str(i) + '\t' + str(order_score[i]))
+
+
+def solve_data_concurrent(concurrency, data, tasks_bf, h):
+    con_generated_data = chunk_seq(data, concurrency)
+    args = [(datum, h, tasks_bf) for datum in con_generated_data]
+    pool = Pool(processes=concurrency)
+    results = pool.map(solve_data_helper, args)
+    pool.close()
+    pool.join()
+    order = funcy.join(results)
+    return order
+
+
+if __name__ == '__main__':
+    run(h=0.8,
+        n=10,
+        generate_tasks=1000000,
+        generated_tasks_bf=100,
+        input_tasks_bf=10000,
+        batch_size=10,
+        concurrency=8)
