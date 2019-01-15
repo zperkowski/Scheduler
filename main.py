@@ -137,19 +137,20 @@ def translate_classification(classification):
 
 if __name__ == '__main__':
     D = 0.8
-    generated_data = generate_set_of_tasks(50000, 10, 1, 20, 1, 10, 1, 15)
+    artificial_tasks = 500
+    generated_data = generate_set_of_tasks(artificial_tasks, 10, 1, 20, 1, 10, 1, 15)
     generated_data = convert_to_numpy_array(generated_data)
     order = solve_data(generated_data, D, bf_samples=1000)
-    classification, model = prepare_conv2d(generated_data[0:50000],
-                                           order[0:50000],
-                                           generated_data[45000:100000],
-                                           order[45000:100000])
+    classification, model = prepare_conv2d(generated_data,
+                                           order,
+                                           generated_data,
+                                           order)
     orders = translate_classification(classification)
     order_train = [t[1] for t in order][5:]
 
     data = load_data('data/sch10.txt')
     data = convert_to_numpy_array(data)
-    order = solve_data(data, D)
+    order = solve_data(data, D, bf_samples=200000)
 
     for i in range(len(order)):
         print(str(i) + '\t' + str(order[i][1]))
@@ -163,6 +164,6 @@ if __name__ == '__main__':
     order_train = [t[1] for t in order][0:10]
     order_score = []
     for i in range(10):
-        order_score.append(solve(0.8, data[i], orders[i]))
+        order_score.append(solve(D, data[i], orders[i]))
     for i in range(len(order_score)):
         print(str(i) + '\t' + str(order_score[i]))
