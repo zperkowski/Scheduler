@@ -1,4 +1,6 @@
+import csv
 import math
+import os
 import random
 import funcy
 from multiprocessing import Pool
@@ -141,26 +143,30 @@ def run(h, n, generate_tasks, generated_tasks_bf, input_tasks_bf, batch_size, co
     generated_data = generate_set_of_tasks(generate_tasks, n, 1, 20, 1, 10, 1, 15)
     generated_data = convert_to_numpy_array(generated_data)
 
-    order = solve_data_concurrent(concurrency, generated_data, generated_tasks_bf, h)
+    order_generated_bf = solve_data_concurrent(concurrency, generated_data, generated_tasks_bf, h)
 
     classification, model = prepare_conv2d(generated_data,
-                                           order,
+                                           order_generated_bf,
                                            generated_data,
-                                           order)
+                                           order_generated_bf)
     data = load_data('data/sch' + str(n) + '.txt')
     data = convert_to_numpy_array(data)
-    order = solve_data_concurrent(concurrency, data, input_tasks_bf, h)
+    order_input_bf = solve_data_concurrent(concurrency, data, input_tasks_bf, h)
 
-    for i in range(len(order)):
-        print(str(i) + '\t' + str(order[i][1]))
+    for i in range(len(order_input_bf)):
+        print(str(i) + '\t' + str(order_input_bf[i][1]))
     classification = model.predict(data, batch_size=batch_size)
-    classification = [c.reshape(10, 10) for c in classification]
+    classification = [c.reshape(n, n) for c in classification]
     orders = translate_classification(classification)
     order_score = []
     for i in range(10):
-        order_score.append(solve(h, data[i], orders[i]))
+        sum_p = sum([p[0] for p in data[i]])
+        d = math.floor(sum_p * h)
+        order_score.append(solve(d, data[i], orders[i]))
     for i in range(len(order_score)):
         print(str(i) + '\t' + str(order_score[i]))
+
+    return order_input_bf, orders, order_score
 
 
 def solve_data_concurrent(concurrency, data, tasks_bf, h):
@@ -175,10 +181,66 @@ def solve_data_concurrent(concurrency, data, tasks_bf, h):
 
 
 if __name__ == '__main__':
-    run(h=0.8,
-        n=10,
-        generate_tasks=1000000,
-        generated_tasks_bf=100,
-        input_tasks_bf=10000,
-        batch_size=10,
-        concurrency=8)
+    f = open('./output10_0-8.csv', 'w')
+    writer = csv.writer(f)
+
+    results = run(h=0.8,
+                  n=10,
+                  generate_tasks=100000,
+                  generated_tasks_bf=5000,
+                  input_tasks_bf=1000000,
+                  batch_size=10,
+                  concurrency=7)
+    writer.writerows(results[0])
+    writer.writerows(results[1])
+    writer.writerow(results[2])
+
+    f.close()
+
+    f = open('./output50_0.6.csv', 'w')
+    writer = csv.writer(f)
+
+    results = run(h=0.6,
+                  n=50,
+                  generate_tasks=100000,
+                  generated_tasks_bf=1000,
+                  input_tasks_bf=100000,
+                  batch_size=10,
+                  concurrency=7)
+    writer.writerows(results[0])
+    writer.writerows(results[1])
+    writer.writerow(results[2])
+
+    f.close()
+
+    f = open('./output200_0.4.csv', 'w')
+    writer = csv.writer(f)
+
+    results = run(h=0.4,
+                  n=200,
+                  generate_tasks=10000,
+                  generated_tasks_bf=1000,
+                  input_tasks_bf=100000,
+                  batch_size=10,
+                  concurrency=7)
+    writer.writerows(results[0])
+    writer.writerows(results[1])
+    writer.writerow(results[2])
+
+    f.close()
+
+    f = open('./output1000_0.2.csv', 'w')
+    writer = csv.writer(f)
+
+    results = run(h=0.2,
+                  n=1000,
+                  generate_tasks=1000,
+                  generated_tasks_bf=1000,
+                  input_tasks_bf=100000,
+                  batch_size=10,
+                  concurrency=7)
+    writer.writerows(results[0])
+    writer.writerows(results[1])
+    writer.writerow(results[2])
+
+    f.close()
